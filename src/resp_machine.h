@@ -19,12 +19,6 @@ public:
         kProcess,
     };
 
-    enum ReqType {
-        kInline,
-        kMultiBulk,
-        kUnknown,
-    };
-
 public:
     size_t Input(const char * s, size_t n);
 
@@ -56,6 +50,12 @@ private:
     size_t ProcessMultiBulkInput(const char * s, size_t n);
 
 private:
+    enum ReqType {
+        kInline,
+        kMultiBulk,
+        kUnknown,
+    };
+
     State state_ = kInit;
     ReqType req_type_ = kUnknown;
     rocksdb::autovector<std::string_view> argv_;

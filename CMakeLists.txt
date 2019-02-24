@@ -12,6 +12,10 @@ add_executable(Cheapis main.cpp
         src/anet.h
         src/cheapis.cpp
         src/cheapis.h
+        src/dakv.cpp
+        src/dakv.h
+        src/env.cpp
+        src/env.h
         src/fmacros.h
         src/gujia.h
         src/gujia_impl.h

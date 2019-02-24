@@ -31,7 +31,7 @@ size_t RespMachine::ProcessInlineInput(const char * s, size_t n) {
 
     sv = {s, pos};
     /* Handle the \r\n case. */
-    if (!sv.empty() && sv.back() == '\t') {
+    if (!sv.empty() && sv.back() == '\r') {
         sv.remove_suffix(1);
     }
 
@@ -39,7 +39,7 @@ size_t RespMachine::ProcessInlineInput(const char * s, size_t n) {
     while (true) {
         auto next_pos = sv.find(' ', pos);
         if (next_pos == std::string::npos) {
-            argv_.emplace_back(sv.data() + pos, sv.size() - 1 - pos);
+            argv_.emplace_back(sv.data() + pos, sv.size() - pos);
             break;
         }
         argv_.emplace_back(sv.data() + pos, next_pos - pos);
