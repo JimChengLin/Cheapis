@@ -5,7 +5,7 @@
 #include <ctime>
 
 namespace cheapis {
-    inline long GetCurrentTimeInSeconds() {
+    inline time_t GetCurrentTimeInSeconds() {
         return time(nullptr);
     }
 }

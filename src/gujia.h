@@ -52,7 +52,7 @@ namespace gujia {
 
         int DelEvent(int fd, int mask);
 
-        int Poll(const struct timeval * tv);
+        int Poll(const struct timeval * tvp);
 
         const std::array<Event, SIZE> &
         GetEvents() const { return events_; }

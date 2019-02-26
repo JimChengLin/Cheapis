@@ -9,12 +9,9 @@ size_t RespMachine::Input(const char * s, size_t n) {
     if (req_type_ == kUnknown) {
         req_type_ = (*s == '*' ? kMultiBulk : kInline);
     }
-    if (req_type_ == kMultiBulk) {
-        return ProcessMultiBulkInput(s, n);
-    } else {
-        assert(req_type_ == kInline);
-        return ProcessInlineInput(s, n);
-    }
+    return req_type_ == kMultiBulk ?
+           ProcessMultiBulkInput(s, n) :
+           ProcessInlineInput(s, n);
 }
 
 size_t RespMachine::ProcessInlineInput(const char * s, size_t n) {
@@ -54,14 +51,13 @@ size_t RespMachine::ProcessMultiBulkInput(const char * s, size_t n) {
 
     size_t consume_len = 0;
     if (multi_bulk_len_ == 0) {
-        /* Multi bulk length cannot be read without a \r\n
-         * Buffer should also contain \n */
+        /* Multi bulk length cannot be read without a \r\n */
         auto pos = sv.find("\r\n");
         if (pos == std::string::npos) {
             return 0;
         }
 
-        /* skip prefix */
+        /* skip '*' */
         sv = {s + 1, pos - 1};
         long long ll;
         int ok = string2ll(sv.data(), sv.size(), &ll);
@@ -78,9 +74,8 @@ size_t RespMachine::ProcessMultiBulkInput(const char * s, size_t n) {
         multi_bulk_len_ = static_cast<int>(ll);
     }
 
+    assert(multi_bulk_len_ > 0);
     while (multi_bulk_len_ != 0) {
-        assert(multi_bulk_len_ > 0);
-
         /* Read bulk length if unknown */
         if (bulk_len_ == -1) {
             sv = {s + consume_len, n - consume_len};
@@ -90,7 +85,7 @@ size_t RespMachine::ProcessMultiBulkInput(const char * s, size_t n) {
             }
 
             sv = {sv.data(), pos};
-            if (sv.front() != '$') {
+            if (sv.empty() || sv.front() != '$') {
                 state_ = kDollarSignNotFoundError;
                 return 0;
             }
@@ -147,28 +142,25 @@ void RespMachine::AppendError(std::string * buf, const char * s, size_t n) {
 }
 
 void RespMachine::AppendInteger(std::string * buf, long long ll) {
-    buf->push_back(':');
     char lls[32];
-    int lls_len = ll2string(lls, sizeof(lls), ll);
-    buf->append(lls, static_cast<size_t>(lls_len));
+    buf->push_back(':');
+    buf->append(lls, static_cast<size_t>(ll2string(lls, sizeof(lls), ll)));
     buf->append("\r\n");
 }
 
 void RespMachine::AppendBulkString(std::string * buf, const char * s, size_t n) {
-    buf->push_back('$');
     char lls[32];
-    int lls_len = ll2string(lls, sizeof(lls), static_cast<long long>(n));
-    buf->append(lls, static_cast<size_t>(lls_len));
+    buf->push_back('$');
+    buf->append(lls, static_cast<size_t>(ll2string(lls, sizeof(lls), static_cast<long long>(n))));
     buf->append("\r\n");
     buf->append(s, n);
     buf->append("\r\n");
 }
 
 void RespMachine::AppendArrayLength(std::string * buf, long long len) {
-    buf->push_back('*');
     char lls[32];
-    int lls_len = ll2string(lls, sizeof(lls), len);
-    buf->append(lls, static_cast<size_t>(lls_len));
+    buf->push_back('*');
+    buf->append(lls, static_cast<size_t>(ll2string(lls, sizeof(lls), len)));
     buf->append("\r\n");
 }
 

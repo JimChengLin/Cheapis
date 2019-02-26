@@ -26,7 +26,11 @@ namespace gujia {
     template<typename T, size_t SIZE>
     int EventLoop<T, SIZE>::
     Acquire(int fd, std::unique_ptr<T> && resource) {
-        assert(fd >= 0 && fd < resources_.size() && resource != nullptr);
+        assert(fd >= 0 && resource != nullptr);
+        if (fd >= resources_.size()) {
+            return -1;
+        }
+
         resources_[fd].swap(resource);
         assert(resource == nullptr);
         max_fd_ = std::max(max_fd_, fd);
@@ -36,7 +40,7 @@ namespace gujia {
     template<typename T, size_t SIZE>
     int EventLoop<T, SIZE>::
     Release(int fd) {
-        assert(fd >= 0 && fd < resources_.size());
+        assert(fd >= 0 && fd <= max_fd_);
         resources_[fd].reset();
         if (fd == max_fd_) {
             do {

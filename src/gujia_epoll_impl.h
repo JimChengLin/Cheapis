@@ -9,14 +9,17 @@ namespace gujia {
     template<typename T, size_t SIZE>
     int EventLoop<T, SIZE>::
     AddEvent(int fd, int mask) {
-        struct epoll_event ee = {0}; /* avoid valgrind warning */
+        mask |= masks_[fd]; /* Merge old events */
+        if (mask == masks_[fd]) {
+            return 0;
+        }
+
         /* If the fd was already monitored for some event, we need a MOD
          * operation. Otherwise we need an ADD operation. */
         int op = masks_[fd] == kNone ?
                  EPOLL_CTL_ADD : EPOLL_CTL_MOD;
 
-        ee.events = 0;
-        mask |= masks_[fd]; /* Merge old events */
+        struct epoll_event ee = {0};
         if (mask & kReadable) ee.events |= EPOLLIN;
         if (mask & kWritable) ee.events |= EPOLLOUT;
         ee.data.fd = fd;
@@ -27,11 +30,13 @@ namespace gujia {
 
     template<typename T, size_t SIZE>
     int EventLoop<T, SIZE>::
-    DelEvent(int fd, int delmask) {
-        struct epoll_event ee = {0}; /* avoid valgrind warning */
-        int mask = masks_[fd] & (~delmask);
+    DelEvent(int fd, int del_mask) {
+        int mask = masks_[fd] & (~del_mask);
+        if (mask == masks_[fd]) {
+            return 0;
+        }
 
-        ee.events = 0;
+        struct epoll_event ee = {0};
         if (mask & kReadable) ee.events |= EPOLLIN;
         if (mask & kWritable) ee.events |= EPOLLOUT;
         ee.data.fd = fd;
@@ -48,10 +53,10 @@ namespace gujia {
 
     template<typename T, size_t SIZE>
     int EventLoop<T, SIZE>::
-    Poll(const struct timeval * tv) {
+    Poll(const struct timeval * tvp) {
         return epoll_wait(el_fd_,
                           events_.data(), static_cast<int>(events_.size()),
-                          tv ? (tv->tv_sec * 1000 + tv->tv_usec / 1000) : -1);
+                          tvp ? (tvp->tv_sec * 1000 + tvp->tv_usec / 1000) : -1);
     }
 
     template<typename T, size_t SIZE>

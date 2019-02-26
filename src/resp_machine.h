@@ -14,6 +14,7 @@ public:
         kInvalidMultiBulkLengthError = kError - 1,
         kDollarSignNotFoundError = kError - 2,
         kInvalidBulkLength = kError - 3,
+
         kSuccess = 0,
         kInit,
         kProcess,

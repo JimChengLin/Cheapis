@@ -133,7 +133,7 @@ namespace cheapis {
                     }
 
                     case RespMachine::kProcess: {
-                        break;
+                        return;
                     }
 
                     case RespMachine::kInit:
@@ -145,12 +145,8 @@ namespace cheapis {
                             el.DelEvent(fd, kReadable | kWritable);
                         }
                         printf("parsing error\n");
-                        break;
+                        return;
                     }
-                }
-
-                if (c->resp.GetState() == RespMachine::kProcess) {
-                    break;
                 }
             }
         };
