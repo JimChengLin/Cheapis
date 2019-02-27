@@ -31,16 +31,24 @@ namespace cheapis {
     constexpr unsigned int kBacklog = 511;
     constexpr unsigned int kCronInterval = 1;
     constexpr unsigned int kMaxAcceptPerCall = 1000;
-    constexpr unsigned int kNetIPLen = 46;
+    constexpr unsigned int kNetIPLength = 46;
     constexpr unsigned int kTCPKeepAlive = 300;
-    constexpr unsigned int kReadBlockSize = 4096;
+    constexpr unsigned int kReadLength = 4096;
     constexpr unsigned int kTimeout = 360;
 
-    static void ReadFromClient() {
+    static void ReadFromClient(Client * c, Executor * executor) {
 
     }
 
-    static void WriteToClient() {
+    static void WriteToClient(Client * c, int fd) {
+
+    }
+
+    static void ExecuteTasks(Executor * executor) {
+
+    }
+
+    static void ServerCron(long * last_cron_time, EventLoop<Client> * el) {
 
     }
 
@@ -70,7 +78,7 @@ namespace cheapis {
 
         int r = el.Acquire(ac_fd, std::make_unique<Client>());
         if (r != 0) {
-            LIN_LOG_ERROR("Cannot acquire the acceptor's fd");
+            LIN_LOG_ERROR("Failed acquiring the acceptor's fd");
             return 1;
         }
 
@@ -81,6 +89,7 @@ namespace cheapis {
             return 1;
         }
 
+        long last_cron_time = GetCurrentTimeInSeconds();
         struct timeval tv = {0};
         tv.tv_sec = kCronInterval;
         while (true) {
@@ -98,14 +107,13 @@ namespace cheapis {
                 int efd = EventLoop<>::GetEventFD(event);
                 if (efd == ac_fd) { // acceptor
                     int cport, cfd, max = kMaxAcceptPerCall;
-                    char cip[kNetIPLen];
+                    char cip[kNetIPLength];
 
                     while (max--) {
                         cfd = anetTcpAccept(err, ac_fd, cip, sizeof(cip), &cport);
                         if (cfd < 0) {
                             if (errno != EAGAIN) {
-                                LIN_LOG_WARN("Accepting client connection: %s",
-                                             err);
+                                LIN_LOG_WARN("Failed accepting. Error message: '%s'", err);
                             }
                             break;
                         }
@@ -113,26 +121,34 @@ namespace cheapis {
                         r = el.Acquire(cfd, std::make_unique<Client>());
                         if (r != 0) {
                             close(cfd);
-                            LIN_LOG_WARN("Cannot acquire the client's fd");
+                            LIN_LOG_WARN("Failed acquiring the client's fd");
                             break;
-                        } else {
-                            anetNonBlock(nullptr, cfd);
-                            anetEnableTcpNoDelay(nullptr, cfd);
-                            anetKeepAlive(nullptr, cfd, kTCPKeepAlive);
-                            el.AddEvent(cfd, kReadable);
-                            LIN_LOG_DEBUG("Accepted %s:%d", cip, cport);
                         }
+                        r = el.AddEvent(cfd, kReadable);
+                        if (r != 0) {
+                            el.Release(cfd);
+                            LIN_LOG_WARN("Failed adding the client's readable event. Error message: '%s'",
+                                         strerror(errno));
+                            break;
+                        }
+                        anetNonBlock(nullptr, cfd);
+                        anetEnableTcpNoDelay(nullptr, cfd);
+                        anetKeepAlive(nullptr, cfd, kTCPKeepAlive);
+                        LIN_LOG_DEBUG("Accepted %s:%d", cip, cport);
                     }
                 } else { // processor
-                    auto & resource = el.GetResource(efd);
+                    auto & client = el.GetResource(efd);
                     if (EventLoop<>::IsEventReadable(event)) {
-
+                        ReadFromClient(client.get(), executor.get());
                     }
                     if (EventLoop<>::IsEventWritable(event)) {
-
+                        WriteToClient(client.get(), efd);
                     }
                 }
             }
+
+            ExecuteTasks(executor.get());
+            ServerCron(&last_cron_time, &el);
         }
     }
 }
