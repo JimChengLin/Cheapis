@@ -1,9 +1,5 @@
-#include <iostream>
-
-#include "src/cheapis.h"
+#include "src/server.h"
 
 int main() {
-    cheapis::Run();
-    std::cout << "Done." << std::endl;
-    return 0;
+    return cheapis::ServerMain();
 }
