@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "autovector.h"
+#include "server.h"
 
 namespace cheapis {
     class Executor {
@@ -17,9 +18,10 @@ namespace cheapis {
 
     public:
         virtual void Submit(const rocksdb::autovector<std::string_view> & in,
-                            std::string * out) = 0;
+                            std::string * out,
+                            int fd) = 0;
 
-        virtual void Execute(size_t n) = 0;
+        virtual void Execute(size_t n, EventLoop<Client> * el) = 0;
 
         virtual size_t GetTaskCount() const = 0;
     };

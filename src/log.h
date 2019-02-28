@@ -3,13 +3,17 @@
 #define CHEAPIS_LOG_H
 
 #include <cstdio>
-
-#include "env.h"
+#include <ctime>
+#include <sys/time.h>
 
 #define LIN_LOG_IMPL(level, file, line, function, fmt, args...)            \
     do {                                                                   \
-        struct tm curr_tm = cheapis::GetLocalTime();                       \
-        long usec = cheapis::GetCurrentMicroseconds();                     \
+        struct timeval tv = {0};                                           \
+        gettimeofday(&tv, nullptr);                                        \
+        time_t t = tv.tv_sec;                                              \
+        struct tm curr_tm = {0};                                           \
+        localtime_r(&t, &curr_tm);                                         \
+        long usec = tv.tv_usec;                                            \
         printf(                                                            \
             "[%04d-%02d-%02d %02d:%02d:%02d.%06ld] %s %s:%d:%s " fmt "\n", \
             curr_tm.tm_year + 1900, curr_tm.tm_mon + 1, curr_tm.tm_mday,   \

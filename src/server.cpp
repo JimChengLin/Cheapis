@@ -1,31 +1,12 @@
 #include <cerrno>
-#include <string>
 
 #include "anet.h"
 #include "env.h"
 #include "executor.h"
-#include "gujia.h"
-#include "gujia_impl.h"
 #include "log.h"
-#include "resp_machine.h"
 #include "server.h"
 
 namespace cheapis {
-    using namespace gujia;
-
-    struct Client {
-        RespMachine resp;
-        std::string input;
-        std::string output;
-        long last_mod_time;
-        unsigned int ref_count = 0;
-        unsigned int consume_len = 0;
-        bool close = false;
-
-        explicit Client(long last_mod_time)
-                : last_mod_time(last_mod_time) {}
-    };
-
     constexpr char kBindAddr[] = "0.0.0.0";
     constexpr unsigned int kPort = 6379;
     constexpr unsigned int kBacklog = 511;
@@ -36,15 +17,15 @@ namespace cheapis {
     constexpr unsigned int kReadLength = 4096;
     constexpr unsigned int kTimeout = 360;
 
-    static void ReadFromClient(Client * c, Executor * executor) {
+    static void ReadFromClient(int fd, Client * c, Executor * executor) {
 
     }
 
-    static void WriteToClient(Client * c, int fd) {
+    static void WriteToClient(int fd, Client * c, EventLoop<Client> * el) {
 
     }
 
-    static void ExecuteTasks(Executor * executor) {
+    static void ExecuteTasks(Executor * executor, EventLoop<Client> * el) {
 
     }
 
@@ -53,7 +34,7 @@ namespace cheapis {
     }
 
     int ServerMain() {
-        const int el_fd = EventLoop<>::Open();
+        const int el_fd = EventLoop<Client>::Open();
         if (el_fd < 0) {
             LIN_LOG_ERROR("Failed creating the event loop. Error message: '%s'",
                           strerror(errno));
@@ -91,8 +72,8 @@ namespace cheapis {
 
         long last_cron_time = GetCurrentTimeInSeconds();
         struct timeval tv = {0};
-        tv.tv_sec = kCronInterval;
         while (true) {
+            tv.tv_sec = executor->GetTaskCount() ? 0 : kCronInterval;
             r = el.Poll(&tv);
             if (r < 0) {
                 LIN_LOG_ERROR("Failed polling. Error message: '%s'",
@@ -104,7 +85,7 @@ namespace cheapis {
             for (int i = 0; i < r; ++i) {
                 const auto & event = events[i];
 
-                int efd = EventLoop<>::GetEventFD(event);
+                int efd = EventLoop<Client>::GetEventFD(event);
                 if (efd == ac_fd) { // acceptor
                     int cport, cfd, max = kMaxAcceptPerCall;
                     char cip[kNetIPLength];
@@ -138,16 +119,16 @@ namespace cheapis {
                     }
                 } else { // processor
                     auto & client = el.GetResource(efd);
-                    if (EventLoop<>::IsEventReadable(event)) {
-                        ReadFromClient(client.get(), executor.get());
+                    if (EventLoop<Client>::IsEventReadable(event)) {
+                        ReadFromClient(efd, client.get(), executor.get());
                     }
-                    if (EventLoop<>::IsEventWritable(event)) {
-                        WriteToClient(client.get(), efd);
+                    if (EventLoop<Client>::IsEventWritable(event)) {
+                        WriteToClient(efd, client.get(), &el);
                     }
                 }
             }
 
-            ExecuteTasks(executor.get());
+            ExecuteTasks(executor.get(), &el);
             ServerCron(&last_cron_time, &el);
         }
     }

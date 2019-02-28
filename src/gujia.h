@@ -41,7 +41,7 @@ namespace gujia {
         kWritable = 1 << 1,
     };
 
-    template<typename T = std::false_type, size_t SIZE = kDefaultSize>
+    template<typename T, size_t SIZE = kDefaultSize>
     class EventLoop {
     public:
         explicit EventLoop(int el_fd) : el_fd_(el_fd) {}
