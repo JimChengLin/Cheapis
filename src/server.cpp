@@ -14,23 +14,117 @@ namespace cheapis {
     constexpr unsigned int kMaxAcceptPerCall = 1000;
     constexpr unsigned int kNetIPLength = 46;
     constexpr unsigned int kTCPKeepAlive = 300;
-    constexpr unsigned int kReadLength = 4096;
     constexpr unsigned int kTimeout = 360;
+    constexpr unsigned int kReadLength = 4096;
+    constexpr unsigned int kMaxInputBuffer = 10485760;
 
-    static void ReadFromClient(int fd, Client * c, Executor * executor) {
-
+    static void ReleaseOrMarkClient(int fd, Client * c, EventLoop<Client> * el) {
+        if (c->ref_count == 0) {
+            el->Release(fd);
+        } else {
+            c->close = true;
+            el->DelEvent(fd, kReadable | kWritable);
+        }
     }
 
-    static void WriteToClient(int fd, Client * c, EventLoop<Client> * el) {
+    static void ReadFromClient(int fd, Client * c, long curr_time, Executor * executor,
+                               EventLoop<Client> * el) {
+        char buf[kReadLength];
+        ssize_t nread = read(fd, buf, kReadLength);
+        if (nread == -1) {
+            if (errno != EAGAIN) {
+                ReleaseOrMarkClient(fd, c, el);
+                LIN_LOG_WARN("Failed reading. Error message: '%s'", strerror(errno));
+            }
+            return;
+        } else if (nread == 0) {
+            ReleaseOrMarkClient(fd, c, el);
+            LIN_LOG_DEBUG("Client closed connection");
+            return;
+        }
 
+        std::string & in = c->input;
+        in.append(buf, static_cast<size_t>(nread));
+        if (in.size() > kMaxInputBuffer) {
+            ReleaseOrMarkClient(fd, c, el);
+            LIN_LOG_WARN("Client reached max input buffer length");
+            return;
+        }
+        c->last_mod_time = curr_time;
+
+        while (c->consume_len < in.size()) {
+            size_t consume_len = c->resp.Input(in.data() + c->consume_len,
+                                               in.size() - c->consume_len);
+            c->consume_len += consume_len;
+
+            auto state = c->resp.GetState();
+            switch (state) {
+                case RespMachine::kSuccess: {
+                    assert(consume_len != 0);
+                    executor->Submit(c->resp.GetArgv(), &c->output, fd);
+                    ++c->ref_count;
+
+                    c->resp.Reset();
+                    in.assign(&in[c->consume_len], &in[in.size()]);
+                    c->consume_len = 0;
+                    break;
+                }
+
+                case RespMachine::kProcess: {
+                    return;
+                }
+
+                case RespMachine::kInit:
+                default: { // error
+                    ReleaseOrMarkClient(fd, c, el);
+                    LIN_LOG_WARN("Failed parsing. Error state: %d", state);
+                    return;
+                }
+            }
+        }
     }
 
-    static void ExecuteTasks(Executor * executor, EventLoop<Client> * el) {
+    static void WriteToClient(int fd, Client * c, long curr_time, EventLoop<Client> * el) {
+        std::string & out = c->output;
+        assert(!out.empty());
+        ssize_t nwrite = write(fd, out.data(), out.size());
+        if (nwrite <= 0) {
+            if (nwrite == -1 && errno != EAGAIN) {
+                ReleaseOrMarkClient(fd, c, el);
+                LIN_LOG_WARN("Failed writing. Error message: '%s'", strerror(errno));
+            }
+            return;
+        }
+        c->last_mod_time = curr_time;
 
+        out.assign(out.data() + nwrite,
+                   out.size() - nwrite);
+        if (out.empty()) {
+            el->DelEvent(fd, kWritable);
+        }
     }
 
-    static void ServerCron(long * last_cron_time, EventLoop<Client> * el) {
+    static void ExecuteTasks(Executor * executor, long curr_time, EventLoop<Client> * el) {
+        size_t plan = (executor->GetTaskCount() + 1) / 2;
+        executor->Execute(plan, curr_time, el);
+    }
 
+    static void ServerCron(long * last_cron_time, long curr_time, EventLoop<Client> * el) {
+        if (curr_time - *last_cron_time > kCronInterval) {
+            *last_cron_time = curr_time;
+
+            auto & clients = el->GetResources();
+            for (int i = 0; i <= el->GetMaxFD(); ++i) {
+                auto & client = clients[i];
+                if (client != nullptr && client->last_mod_time != -1) {
+                    assert(!client->close || client->ref_count);
+                    if (curr_time - client->last_mod_time > kTimeout) {
+                        ReleaseOrMarkClient(i, client.get(), el);
+                        LIN_LOG_DEBUG("Client timed out");
+                    }
+                }
+            }
+        }
     }
 
     int ServerMain() {
@@ -81,6 +175,7 @@ namespace cheapis {
                 return 1;
             }
 
+            long curr_time = GetCurrentTimeInSeconds();
             const auto & events = el.GetEvents();
             for (int i = 0; i < r; ++i) {
                 const auto & event = events[i];
@@ -99,7 +194,7 @@ namespace cheapis {
                             break;
                         }
 
-                        r = el.Acquire(cfd, std::make_unique<Client>());
+                        r = el.Acquire(cfd, std::make_unique<Client>(curr_time));
                         if (r != 0) {
                             close(cfd);
                             LIN_LOG_WARN("Failed acquiring the client's fd");
@@ -120,16 +215,16 @@ namespace cheapis {
                 } else { // processor
                     auto & client = el.GetResource(efd);
                     if (EventLoop<Client>::IsEventReadable(event)) {
-                        ReadFromClient(efd, client.get(), executor.get());
+                        ReadFromClient(efd, client.get(), curr_time, executor.get(), &el);
                     }
                     if (EventLoop<Client>::IsEventWritable(event)) {
-                        WriteToClient(efd, client.get(), &el);
+                        WriteToClient(efd, client.get(), curr_time, &el);
                     }
                 }
             }
 
-            ExecuteTasks(executor.get(), &el);
-            ServerCron(&last_cron_time, &el);
+            ExecuteTasks(executor.get(), curr_time, &el);
+            ServerCron(&last_cron_time, curr_time, &el);
         }
     }
 }

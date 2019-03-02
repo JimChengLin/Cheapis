@@ -37,10 +37,10 @@ namespace gujia {
         }
 
         struct epoll_event ee = {0};
-        if (mask & kReadable) ee.events |= EPOLLIN;
-        if (mask & kWritable) ee.events |= EPOLLOUT;
         ee.data.fd = fd;
         if (mask != kNone) {
+            if (mask & kReadable) ee.events |= EPOLLIN;
+            if (mask & kWritable) ee.events |= EPOLLOUT;
             epoll_ctl(el_fd_, EPOLL_CTL_MOD, fd, &ee);
         } else {
             /* Note, Kernel < 2.6.9 requires a non null event pointer even for

@@ -151,7 +151,8 @@ void RespMachine::AppendInteger(std::string * buf, long long ll) {
 void RespMachine::AppendBulkString(std::string * buf, const char * s, size_t n) {
     char lls[32];
     buf->push_back('$');
-    buf->append(lls, static_cast<size_t>(ll2string(lls, sizeof(lls), static_cast<long long>(n))));
+    buf->append(lls, static_cast<size_t>(ll2string(lls, sizeof(lls),
+                                                   static_cast<long long>(n))));
     buf->append("\r\n");
     buf->append(s, n);
     buf->append("\r\n");

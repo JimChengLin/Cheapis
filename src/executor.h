@@ -21,7 +21,7 @@ namespace cheapis {
                             std::string * out,
                             int fd) = 0;
 
-        virtual void Execute(size_t n, EventLoop<Client> * el) = 0;
+        virtual void Execute(size_t n, long curr_time, EventLoop<Client> * el) = 0;
 
         virtual size_t GetTaskCount() const = 0;
     };
