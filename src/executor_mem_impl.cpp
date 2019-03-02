@@ -40,7 +40,7 @@ namespace cheapis {
                 auto & argv = task.argv;
                 if (argv[0] == "GET" && argv.size() == 2) {
                     auto it = map_.find(argv[1]);
-                    if (it == map_.cend()) {
+                    if (it != map_.cend()) {
                         RespMachine::AppendBulkString(&c->output, it->second);
                     } else {
                         RespMachine::AppendNullArray(&c->output);

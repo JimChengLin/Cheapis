@@ -110,7 +110,7 @@ namespace cheapis {
     }
 
     static void ServerCron(long * last_cron_time, long curr_time, EventLoop<Client> * el) {
-        if (curr_time - *last_cron_time > kCronInterval) {
+        if (curr_time - *last_cron_time >= kCronInterval) {
             *last_cron_time = curr_time;
 
             auto & clients = el->GetResources();
