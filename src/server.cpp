@@ -61,7 +61,7 @@ namespace cheapis {
             switch (state) {
                 case RespMachine::kSuccess: {
                     assert(consume_len != 0);
-                    executor->Submit(c->resp.GetArgv(), &c->output, fd);
+                    executor->Submit(c->resp.GetArgv(), c, fd);
                     ++c->ref_count;
 
                     c->resp.Reset();

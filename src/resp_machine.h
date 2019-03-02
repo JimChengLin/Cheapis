@@ -35,9 +35,21 @@ public:
 
     static void AppendError(std::string * buf, const char * s, size_t n);
 
+    static void AppendSimpleString(std::string * buf, const std::string_view & sv) {
+        AppendSimpleString(buf, sv.data(), sv.size());
+    }
+
+    static void AppendError(std::string * buf, const std::string_view & sv) {
+        AppendError(buf, sv.data(), sv.size());
+    }
+
     static void AppendInteger(std::string * buf, long long ll);
 
     static void AppendBulkString(std::string * buf, const char * s, size_t n);
+
+    static void AppendBulkString(std::string * buf, const std::string_view & sv) {
+        AppendBulkString(buf, sv.data(), sv.size());
+    }
 
     static void AppendArrayLength(std::string * buf, long long len);
 

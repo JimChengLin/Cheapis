@@ -17,9 +17,8 @@ namespace cheapis {
         virtual ~Executor() = default;
 
     public:
-        virtual void Submit(const rocksdb::autovector<std::string_view> & in,
-                            std::string * out,
-                            int fd) = 0;
+        virtual void Submit(const rocksdb::autovector<std::string_view> & argv,
+                            Client * c, int fd) = 0;
 
         virtual void Execute(size_t n, long curr_time, EventLoop<Client> * el) = 0;
 
