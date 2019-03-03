@@ -138,8 +138,7 @@ namespace cheapis {
 
         auto executor = OpenExecutorMem();
         if (executor == nullptr) {
-            LIN_LOG_ERROR("Failed creating the executor. Error message: '%s'",
-                          strerror(errno));
+            LIN_LOG_ERROR("Failed creating the executor");
             return 1;
         }
 

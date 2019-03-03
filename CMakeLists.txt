@@ -10,6 +10,10 @@ include_directories(sig_tree/src)
 add_executable(Cheapis main.cpp
         src/anet.c
         src/anet.h
+        src/disk/dakv.cpp
+        src/disk/dakv.h
+        src/disk/filename.cpp
+        src/disk/filename.h
         src/env.cpp
         src/env.h
         src/executor.h
