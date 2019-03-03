@@ -4,13 +4,14 @@
 #include "executor.h"
 
 namespace cheapis {
-    struct Task {
-        rocksdb::autovector<std::string> argv;
-        Client * c;
-        int fd;
-    };
-
     class ExecutorMemImpl final : public Executor {
+    private:
+        struct Task {
+            rocksdb::autovector<std::string> argv;
+            Client * c;
+            int fd;
+        };
+
     public:
         ~ExecutorMemImpl() override = default;
 
@@ -23,7 +24,7 @@ namespace cheapis {
         }
 
         void Execute(size_t n, long curr_time, EventLoop<Client> * el) override {
-            for (size_t i = 0; i < n; ++i) {
+            for (size_t i = 0; i < n; tasks_.pop_front(), ++i) {
                 Task & task = tasks_.front();
                 Client * c = task.c;
                 int fd = task.fd;
@@ -33,7 +34,7 @@ namespace cheapis {
                     if (c->ref_count == 0) {
                         el->Release(fd);
                     }
-                    return;
+                    continue;
                 }
 
                 bool blocked = !c->output.empty();
@@ -65,8 +66,6 @@ namespace cheapis {
                         el->AddEvent(fd, kWritable);
                     }
                 }
-
-                tasks_.pop_front();
             }
         }
 

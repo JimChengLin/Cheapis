@@ -109,4 +109,27 @@ namespace cheapis {
         }
         return r;
     }
+
+    std::unique_ptr<MmapRWFile>
+    OpenMmapRWFile(const std::string & name, uint64_t n) {
+        int fd = OpenFile(name, O_CREAT | O_RDWR);
+        if (fd < 0) {
+            LIN_LOG_ERROR("Failed opening the MmapRWFile. Error message: '%s'",
+                          strerror(errno));
+            return nullptr;
+        }
+        int r = FileTruncate(fd, n);
+        if (r != 0) {
+            LIN_LOG_ERROR("Failed opening the MmapRWFile. Error message: '%s'",
+                          strerror(errno));
+            return nullptr;
+        }
+        void * base = mmap(nullptr, n, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (base == MAP_FAILED) {
+            LIN_LOG_ERROR("Failed opening the MmapRWFile. Error message: '%s'",
+                          strerror(errno));
+            return nullptr;
+        }
+        return std::make_unique<MmapRWFile>(base, n, fd);
+    }
 }
