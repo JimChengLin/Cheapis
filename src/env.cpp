@@ -71,13 +71,13 @@ namespace cheapis {
     int MmapRWFile::Resize(uint64_t n) {
         int r = FileTruncate(fd_, n);
         if (r != 0) {
-            LIN_LOG_ERROR("Failed resizing. Error message: '%s'",
+            LIN_LOG_ERROR("Failed resizing the MmapRWFile. Error message: '%s'",
                           strerror(errno));
             return -1;
         }
 #if !defined(__linux__)
         if (munmap(base_, len_) != 0) {
-            LIN_LOG_ERROR("Failed resizing. Error message: '%s'",
+            LIN_LOG_ERROR("Failed resizing the MmapRWFile. Error message: '%s'",
                           strerror(errno));
             return -1;
         }
@@ -86,7 +86,7 @@ namespace cheapis {
         base_ = mremap(base_, len_, n, MREMAP_MAYMOVE);
 #endif
         if (base_ == MAP_FAILED) {
-            LIN_LOG_ERROR("Failed resizing. Error message: '%s'",
+            LIN_LOG_ERROR("Failed resizing the MmapRWFile. Error message: '%s'",
                           strerror(errno));
             return -1;
         }

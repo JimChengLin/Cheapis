@@ -7,6 +7,7 @@
 #include "../executor.h"
 #include "../log.h"
 #include "filename.h"
+
 #include "likely.h"
 #include "sig_tree.h"
 #include "sig_tree_impl.h"
@@ -20,15 +21,12 @@
 namespace cheapis {
     using namespace sgt;
 
-    constexpr unsigned int kMaxDataFileLength = 2147483648;
+    constexpr unsigned int kMaxDataFileSize = 2147483648;
 
     class ExecutorDiskImpl;
 
     static inline uint16_t
     PackKVLength(size_t k_len, size_t v_len) {
-        if (k_len > UINT5_MAX) {
-            v_len += (k_len - UINT5_MAX);
-        }
         return static_cast<uint16_t>((std::min<size_t>(k_len, UINT5_MAX) << 11) |
                                      (std::min<size_t>(v_len, UINT11_MAX)));
     }
@@ -78,7 +76,7 @@ namespace cheapis {
 
         ~Helper() override = default;
 
-        uint64_t Add(const Slice & k, const Slice & v) override { return 0; }
+        uint64_t Add(const Slice & k, const Slice & v) override { return {}; }
 
         void Del(KVTrans & trans) override {}
 
@@ -138,13 +136,22 @@ namespace cheapis {
         }
 
         void Grow() override {
-            file_->Resize(file_->GetFileSize() * 2);
+            int r = file_->Resize(file_->GetFileSize() * 2);
+            if (r != 0) {
+                LIN_LOG_ERROR("Failed growing");
+                exit(1);
+            }
         }
 
     private:
         std::unique_ptr<MmapRWFile> file_;
         size_t allocate_;
         int64_t recycle_;
+    };
+
+    struct Header {
+        uint16_t k_len;
+        uint16_t v_len;
     };
 
     class ExecutorDiskImpl final : public Executor {
@@ -161,11 +168,6 @@ namespace cheapis {
             Client * c;
             int fd;
             Command cmd;
-        };
-
-        struct Header {
-            uint16_t k_len;
-            uint16_t v_len;
         };
 
     public:
@@ -211,14 +213,17 @@ namespace cheapis {
         }
 
         void Execute(size_t n, long curr_time, EventLoop<Client> * el) override {
+            if (n == 0) {
+                return;
+            }
+            CreateFileIfNeed();
             buf_.clear();
             batch_.clear();
-            CreateFileIfNeed();
 
             auto it = tasks_.cbegin();
             for (size_t i = 0; i < n; ++i) {
                 const Task & task = *it++;
-                if (task.cmd == kSet) {
+                if (task.cmd == kSet && !task.c->close) {
                     const auto & k = task.argv[0];
                     const auto & v = task.argv[1];
                     Header header = {static_cast<uint16_t>(k.size()),
@@ -256,8 +261,8 @@ namespace cheapis {
                 auto & argv = task.argv;
                 switch (task.cmd) {
                     case kGet: {
-                        bool ok = tree_.Get(argv[0], &v_);
-                        if (ok) {
+                        bool found = tree_.Get(argv[0], &v_);
+                        if (found) {
                             RespMachine::AppendBulkString(&c->output, v_);
                         } else {
                             RespMachine::AppendNullArray(&c->output);
@@ -338,7 +343,7 @@ namespace cheapis {
         }
 
         void CreateFileIfNeed() {
-            if (offset_ >= kMaxDataFileLength) {
+            if (offset_ >= kMaxDataFileSize) {
                 ++curr_id_;
                 DataFilename(dir_, static_cast<uint64_t>(curr_id_), &buf_);
                 int fd = OpenFile(buf_, O_CREAT | O_RDWR | O_TRUNC);
@@ -348,7 +353,7 @@ namespace cheapis {
                 }
 
                 FileHint(fd, kRandom);
-                FileTruncate(fd, kMaxDataFileLength);
+                FileTruncate(fd, kMaxDataFileSize);
                 fd_map_[curr_id_] = fd;
                 offset_ = 0;
             }
@@ -423,14 +428,14 @@ namespace cheapis {
         uint16_t v_len;
         std::tie(k_len, v_len) = UnpackLength(length);
 
-        ExecutorDiskImpl::Header header;
+        Header header;
         std::string & buf = executor_->buf_;
         buf.resize(sizeof(header) + k_len + v_len);
 
         int fd = executor_->fd_map_[id];
         ssize_t nread = pread(fd, buf.data(), buf.size(), offset);
         if (nread != buf.size()) {
-            LIN_LOG_ERROR("Failed reading. Error message: '%s'", strerror(errno));
+            LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
             exit(1);
         }
 
@@ -443,7 +448,7 @@ namespace cheapis {
 
             nread = pread(fd, &buf[have], less, offset + have);
             if (nread != less) {
-                LIN_LOG_ERROR("Failed reading. Error message: '%s'", strerror(errno));
+                LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
                 exit(1);
             }
         }
@@ -461,29 +466,29 @@ namespace cheapis {
 
     void KVTrans::LoadKey(uint16_t id, uint16_t k_len, uint32_t offset) {
         std::string & buf = executor_->buf_;
-        buf.resize(sizeof(ExecutorDiskImpl::Header) + k_len);
+        buf.resize(sizeof(Header) + k_len);
 
         int fd = executor_->fd_map_[id];
         ssize_t nread = pread(fd, buf.data(), buf.size(), offset);
         if (nread != buf.size()) {
-            LIN_LOG_ERROR("Failed reading. Error message: '%s'", strerror(errno));
+            LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
             exit(1);
         }
 
         memcpy(&k_len, buf.data(), sizeof(k_len));
         size_t have = buf.size();
-        size_t need = sizeof(ExecutorDiskImpl::Header) + k_len;
+        size_t need = sizeof(Header) + k_len;
         size_t less = need - have;
         if (less > 0) {
             buf.resize(need);
 
             nread = pread(fd, &buf[have], less, offset + have);
             if (nread != less) {
-                LIN_LOG_ERROR("Failed reading. Error message: '%s'", strerror(errno));
+                LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
                 exit(1);
             }
         }
-        k_ = {buf.data() + sizeof(ExecutorDiskImpl::Header), k_len};
+        k_ = {buf.data() + sizeof(Header), k_len};
     }
 
     std::unique_ptr<Executor>
@@ -494,6 +499,7 @@ namespace cheapis {
         if (index_file == nullptr) {
             return nullptr;
         }
+        index_file->Hint(kRandom);
         return std::make_unique<ExecutorDiskImpl>(name, std::move(index_file));
     }
 }
