@@ -1,4 +1,5 @@
 #include <cerrno>
+#include <cstring>
 
 #include "anet.h"
 #include "env.h"

@@ -15,8 +15,8 @@
 #include "sig_tree_rebuild_impl.h"
 #include "sig_tree_visit_impl.h"
 
-#define UINT5_MAX  ((1 << 6) - 1)
-#define UINT11_MAX ((1 << 12) - 1)
+#define UINT5_MAX  ((1 << 5) - 1)
+#define UINT11_MAX ((1 << 11) - 1)
 
 namespace cheapis {
     using namespace sgt;
@@ -369,8 +369,8 @@ namespace cheapis {
         AllocatorImpl allocator_;
         SignatureTreeTpl<KVTrans> tree_;
 
-        std::unordered_map<uint16_t, int> fd_map_;
         std::deque<Task> tasks_;
+        std::unordered_map<uint16_t, int> fd_map_;
 
         int32_t curr_id_ = -1;
         uint32_t offset_ = UINT32_MAX;
@@ -442,6 +442,7 @@ namespace cheapis {
         memcpy(&header, buf.data(), sizeof(header));
         size_t have = buf.size();
         size_t need = sizeof(header) + header.k_len + header.v_len;
+        assert(need >= have);
         size_t less = need - have;
         if (less > 0) {
             buf.resize(need);
@@ -478,6 +479,7 @@ namespace cheapis {
         memcpy(&k_len, buf.data(), sizeof(k_len));
         size_t have = buf.size();
         size_t need = sizeof(Header) + k_len;
+        assert(need >= have);
         size_t less = need - have;
         if (less > 0) {
             buf.resize(need);

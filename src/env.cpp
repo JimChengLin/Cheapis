@@ -1,4 +1,5 @@
 #include <cerrno>
+#include <cstring>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -26,7 +27,7 @@ namespace cheapis {
 #if !defined(__linux__)
         r = ftruncate(fd, static_cast<off_t>(n));
 #else
-        r = fallocate(fd, 0, 0, static_cast<off_t>(n));
+        r = posix_fallocate(fd, 0, 0, static_cast<off_t>(n));
 #endif
         return r;
     }
