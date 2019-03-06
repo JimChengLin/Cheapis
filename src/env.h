@@ -21,7 +21,7 @@ namespace cheapis {
 
     int OpenFile(const std::string & name, int flags);
 
-    int FileTruncate(int fd, uint64_t n);
+    int FileAllocate(int fd, uint64_t n);
 
     int FilePrefetch(int fd, uint64_t offset, uint64_t n);
 

@@ -22,7 +22,7 @@ namespace cheapis {
         return open(name.c_str(), flags, PERM_rw_r__r__);
     }
 
-    int FileTruncate(int fd, uint64_t n) {
+    int FileAllocate(int fd, uint64_t n) {
         int r;
 #if !defined(__linux__)
         r = ftruncate(fd, static_cast<off_t>(n));
@@ -70,7 +70,7 @@ namespace cheapis {
     }
 
     int MmapRWFile::Resize(uint64_t n) {
-        int r = FileTruncate(fd_, n);
+        int r = FileAllocate(fd_, n);
         if (r != 0) {
             LIN_LOG_ERROR("Failed resizing the MmapRWFile. Error message: '%s'",
                           strerror(errno));
@@ -119,7 +119,7 @@ namespace cheapis {
                           strerror(errno));
             return nullptr;
         }
-        int r = FileTruncate(fd, n);
+        int r = FileAllocate(fd, n);
         if (r != 0) {
             LIN_LOG_ERROR("Failed opening the MmapRWFile. Error message: '%s'",
                           strerror(errno));

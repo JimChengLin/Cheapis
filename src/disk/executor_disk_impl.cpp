@@ -353,7 +353,7 @@ namespace cheapis {
                 }
 
                 FileHint(fd, kRandom);
-                FileTruncate(fd, kMaxDataFileSize);
+                FileAllocate(fd, kMaxDataFileSize);
                 fd_map_[curr_id_] = fd;
                 offset_ = 0;
             }
