@@ -128,7 +128,7 @@ namespace cheapis {
         }
     }
 
-    int ServerMain() {
+    int ServerMain(int argc, char * argv[]) {
         const int el_fd = EventLoop<Client>::Open();
         if (el_fd < 0) {
             LIN_LOG_ERROR("Failed creating the event loop. Error message: '%s'",
@@ -137,7 +137,8 @@ namespace cheapis {
         }
         EventLoop<Client> el(el_fd);
 
-        auto executor = OpenExecutorMem();
+        auto executor = argc == 1 ? OpenExecutorMem()
+                                  : OpenExecutorDisk(argv[1]);
         if (executor == nullptr) {
             LIN_LOG_ERROR("Failed creating the executor");
             return 1;

@@ -1,5 +1,5 @@
 #include "src/server.h"
 
-int main() {
-    return cheapis::ServerMain();
+int main(int argc, char * argv[]) {
+    return cheapis::ServerMain(argc, argv);
 }

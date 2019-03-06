@@ -11,7 +11,7 @@
 namespace cheapis {
     using namespace gujia;
 
-    int ServerMain();
+    int ServerMain(int argc, char * argv[]);
 
     struct Client {
         RespMachine resp;
