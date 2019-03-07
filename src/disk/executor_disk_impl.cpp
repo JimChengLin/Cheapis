@@ -238,7 +238,7 @@ namespace cheapis {
                 }
             }
 
-            ssize_t nwrite = write(fd_map_[curr_id_], buf_.data(), buf_.size());
+            ssize_t nwrite = write(curr_fd_, buf_.data(), buf_.size());
             if (nwrite != buf_.size()) {
                 LIN_LOG_ERROR("Failed writing. Error message: '%s'", strerror(errno));
                 exit(1);
@@ -355,6 +355,7 @@ namespace cheapis {
                 FileHint(fd, kRandom);
                 FileAllocate(fd, kMaxDataFileSize);
                 fd_map_[curr_id_] = fd;
+                curr_fd_ = fd;
                 offset_ = 0;
             }
         }
@@ -372,6 +373,7 @@ namespace cheapis {
         std::deque<Task> tasks_;
         std::unordered_map<uint16_t, int> fd_map_;
 
+        int curr_fd_ = -1;
         int32_t curr_id_ = -1;
         uint32_t offset_ = UINT32_MAX;
 
