@@ -27,7 +27,7 @@ namespace cheapis {
 #if !defined(__linux__)
         r = ftruncate(fd, static_cast<off_t>(n));
 #else
-        r = posix_fallocate(fd, 0, 0, static_cast<off_t>(n));
+        r = posix_fallocate(fd, 0, static_cast<off_t>(n));
 #endif
         return r;
     }
@@ -61,6 +61,15 @@ namespace cheapis {
 #endif
                 break;
         }
+        return r;
+    }
+
+    int FileRangeSync(int fd, uint64_t offset, uint64_t n) {
+        int r = 0;
+#if defined(__linux__)
+        r = sync_file_range(fd, static_cast<off_t>(offset), static_cast<off_t>(n),
+                            SYNC_FILE_RANGE_WRITE);
+#endif
         return r;
     }
 

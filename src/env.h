@@ -13,6 +13,12 @@ namespace cheapis {
         return tv.tv_sec;
     }
 
+    inline time_t GetCurrentTimeInMilliseconds() {
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    }
+
     enum AccessPattern {
         kNormal,
         kSequential,
@@ -26,6 +32,8 @@ namespace cheapis {
     int FilePrefetch(int fd, uint64_t offset, uint64_t n);
 
     int FileHint(int fd, AccessPattern pattern);
+
+    int FileRangeSync(int fd, uint64_t offset, uint64_t n);
 
     class MmapRWFile {
     public:

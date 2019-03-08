@@ -239,7 +239,7 @@ namespace cheapis {
             }
 
             ssize_t nwrite = write(curr_fd_, buf_.data(), buf_.size());
-            if (nwrite != buf_.size()) {
+            if (nwrite != static_cast<ssize_t>(buf_.size())) {
                 LIN_LOG_ERROR("Failed writing. Error message: '%s'", strerror(errno));
                 exit(1);
             }
@@ -344,6 +344,14 @@ namespace cheapis {
 
         void CreateFileIfNeed() {
             if (offset_ >= kMaxDataFileSize) {
+#if defined(__linux__)
+                if (SGT_LIKELY(curr_fd_ != -1)) {
+                    auto a = GetCurrentTimeInMilliseconds();
+                    FileRangeSync(curr_fd_, 0, offset_);
+                    auto b = GetCurrentTimeInMilliseconds();
+                    LIN_LOG_INFO("ID %d FileRangeSync took %ld milliseconds", curr_id_, b - a);
+                }
+#endif
                 ++curr_id_;
                 DataFilename(dir_, static_cast<uint64_t>(curr_id_), &buf_);
                 int fd = OpenFile(buf_, O_CREAT | O_RDWR | O_TRUNC);
@@ -436,7 +444,7 @@ namespace cheapis {
 
         int fd = executor_->fd_map_[id];
         ssize_t nread = pread(fd, buf.data(), buf.size(), offset);
-        if (nread != buf.size()) {
+        if (nread != static_cast<ssize_t>(buf.size())) {
             LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
             exit(1);
         }
@@ -450,7 +458,7 @@ namespace cheapis {
             buf.resize(need);
 
             nread = pread(fd, &buf[have], less, offset + have);
-            if (nread != less) {
+            if (nread != static_cast<ssize_t>(less)) {
                 LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
                 exit(1);
             }
@@ -473,7 +481,7 @@ namespace cheapis {
 
         int fd = executor_->fd_map_[id];
         ssize_t nread = pread(fd, buf.data(), buf.size(), offset);
-        if (nread != buf.size()) {
+        if (nread != static_cast<ssize_t>(buf.size())) {
             LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
             exit(1);
         }
@@ -487,7 +495,7 @@ namespace cheapis {
             buf.resize(need);
 
             nread = pread(fd, &buf[have], less, offset + have);
-            if (nread != less) {
+            if (nread != static_cast<ssize_t>(less)) {
                 LIN_LOG_ERROR("Failed preading. Error message: '%s'", strerror(errno));
                 exit(1);
             }
