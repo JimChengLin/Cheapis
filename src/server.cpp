@@ -218,7 +218,7 @@ namespace cheapis {
                     if (EventLoop<Client>::IsEventReadable(event)) {
                         ReadFromClient(efd, client.get(), curr_time, executor.get(), &el);
                     }
-                    if (EventLoop<Client>::IsEventWritable(event)) {
+                    if (EventLoop<Client>::IsEventWritable(event) && client != nullptr) {
                         WriteToClient(efd, client.get(), curr_time, &el);
                     }
                 }

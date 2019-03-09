@@ -349,7 +349,7 @@ namespace cheapis {
                     auto a = GetCurrentTimeInMilliseconds();
                     FileRangeSync(curr_fd_, 0, offset_);
                     auto b = GetCurrentTimeInMilliseconds();
-                    LIN_LOG_INFO("ID %d FileRangeSync took %ld milliseconds", curr_id_, b - a);
+                    LIN_LOG_INFO("ID %d FileRangeSync took %ld ms", curr_id_, b - a);
                 }
 #endif
                 ++curr_id_;
