@@ -2,6 +2,6 @@
 Cheapis == Cheap Storage(SSD) + Redis Protocol
 
 Current Supported Command:
-* GET
-* SET
-* DEL
+* <tt>GET</tt>
+* <tt>SET</tt>
+* <tt>DEL</tt>
